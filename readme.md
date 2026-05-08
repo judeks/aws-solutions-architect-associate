@@ -1,1 +1,1 @@
-## AWS Certified Solutions Architect – Associate Labs
+## AWS Solutions Architect – Labs
