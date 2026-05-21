@@ -1,4 +1,8 @@
 
+## Architecture
+
+
+
 # AutoScaingGroup-LoadBalancer
 
   * Explorer le template CloudFormation en creant une pile
