@@ -1,0 +1,275 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Projet Troubleshooting Application Web
+
+
+Resources:
+    ChallengeVPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: 10.5.0.0/16
+        InstanceTenancy: default
+        EnableDnsSupport: 'true'
+        EnableDnsHostnames: 'true'
+        Tags:
+          - Key: Name
+            Value: ChallengeVPC
+
+    ChallengePublicSubnetA:
+      Type: AWS::EC2::Subnet
+      Properties:
+        CidrBlock: 10.5.0.0/24
+        AvailabilityZone: us-east-1a
+        MapPublicIpOnLaunch: 'True'
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengePublicSubnetA
+
+    ChallengePublicSubnetB:
+      Type: AWS::EC2::Subnet
+      Properties:
+        CidrBlock: 10.5.1.0/24
+        AvailabilityZone: us-east-1b
+        MapPublicIpOnLaunch: 'True'
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengePublicSubnetB
+
+    ChallengePrivateSubnetA:
+      Type: AWS::EC2::Subnet
+      Properties:
+        CidrBlock: 10.5.2.0/24
+        AvailabilityZone: us-east-1a
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengePrivateSubnetA
+
+    ChallengePrivateSubnetB:
+      Type: AWS::EC2::Subnet
+      Properties:
+        CidrBlock: 10.5.3.0/24
+        AvailabilityZone: us-east-1b
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengePrivateSubnetB
+
+    ChallengeIGW:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+        Tags:
+          - Key: Name
+            Value: ChallengeIGW
+
+    ChallengeNetworkACL:
+      Type: AWS::EC2::NetworkAcl
+      Properties:
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengeNetworkACL
+
+    ChallengeRoutePublic:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengeRoutePublic
+
+    ChallengeRoutePrivate:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengeRoutePrivate
+
+    ChallengeInstance1:
+      Type: AWS::EC2::Instance
+      Properties:
+        DisableApiTermination: 'false'
+        InstanceInitiatedShutdownBehavior: stop
+        ImageId: ami-0236922087fa98b6e
+        InstanceType: t2.micro
+        Monitoring: 'false'
+        UserData:
+          IyEvYmluL2Jhc2gKeXVtIHVwZGF0ZSAteQp5dW0gaW5zdGFsbCAteSBodHRwZC54ODZfNjQKc3lzdGVtY3RsIHN0YXJ0IGh0dHBkLnNlcnZpY2UKc3lzdGVtY3RsIGVuYWJsZSBodHRwZC5zZXJ2aWNlCmVjaG8gJzxodG1sPjxoZWFkPjx0aXRsZT5TdWNjZXNzITwvdGl0bGU+PC9oZWFkPjxib2R5PjxpZnJhbWUgd2lkdGg9IjU2MCIgaGVpZ2h0PSIzMTUiIHNyYz0iaHR0cHM6Ly93d3cueW91dHViZS5jb20vZW1iZWQvWkhYb2FRRlVpRVU/c2k9YkhqYlBnYkFnZGxfLVZleSIgZnJhbWVib3JkZXI9IjAiIGFsbG93ZnVsbHNjcmVlbj48L2lmcmFtZT48L2JvZHk+PC9odG1sPicgPiAvdmFyL3d3dy9odG1sL2luZGV4Lmh0bWw=
+        Tags:
+          - Key: Name
+            Value: ChallengeInstance1
+        NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeleteOnTermination: 'true'
+          Description: Primary network interface
+          DeviceIndex: 0
+          SubnetId: !Ref 'ChallengePublicSubnetA'
+          GroupSet: [!Ref 'ChallengeSGapp']
+
+
+    ChallengeElb:
+      Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+      Properties:
+        LoadBalancerAttributes:
+          - Key: 'deletion_protection.enabled'
+            Value: False
+          - Key: 'access_logs.s3.enabled'
+            Value: False
+        Scheme: 'internet-facing'
+        Name: "ChallengeElb"
+        Subnets:
+          - !Ref 'ChallengePublicSubnetA'
+          - !Ref 'ChallengePublicSubnetB'
+        SecurityGroups: [!Ref 'ChallengeSGELB']
+        Tags:
+          - Key: Name
+            Value: ChallengeElb
+
+    ChallengeHTTPListener:
+        Type: "AWS::ElasticLoadBalancingV2::Listener"
+        Properties:
+            LoadBalancerArn: !Ref ChallengeElb
+            Port: 80
+            Protocol: "HTTP"
+            DefaultActions:
+              -
+                Order: 1
+                TargetGroupArn: !Ref ChallengeTargetGroup
+                Type: "forward"
+
+    ChallengeTargetGroup:
+      Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+      Properties:
+        HealthCheckIntervalSeconds: 15
+        HealthCheckPath: "/toto.html"
+        Port: 80
+        Protocol: "HTTP"
+        HealthCheckPort: "traffic-port"
+        HealthCheckProtocol: "HTTP"
+        HealthCheckTimeoutSeconds: 5
+        UnhealthyThresholdCount: 2
+        TargetType: "instance"
+        Targets:
+          - Id: !Ref 'ChallengeInstance1'
+        Matcher:
+            HttpCode: "200"
+        HealthyThresholdCount: 2
+        VpcId: !Ref ChallengeVPC
+        Name: "ChallengeTargetGroup"
+        HealthCheckEnabled: true
+        TargetGroupAttributes:
+          -
+            Key: "stickiness.enabled"
+            Value: "false"
+          -
+            Key: "load_balancing.algorithm.type"
+            Value: "round_robin"
+
+    ChallengeSGELB:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: ELB security group
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengeSGELB
+
+    ChallengeSGapp:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: SA Assignment - App server security group
+        VpcId: !Ref 'ChallengeVPC'
+        Tags:
+          - Key: Name
+            Value: ChallengeSGapp
+
+    ChallengeNACLEntry1:
+      Type: AWS::EC2::NetworkAclEntry
+      Properties:
+        CidrBlock: 0.0.0.0/0
+        Egress: 'true'
+        Protocol: '-1'
+        RuleAction: allow
+        RuleNumber: '100'
+        NetworkAclId: !Ref 'ChallengeNetworkACL'
+
+    ChallengeNACLEntry2:
+      Type: AWS::EC2::NetworkAclEntry
+      Properties:
+        CidrBlock: 0.0.0.0/0
+        Protocol: '-1'
+        RuleAction: allow
+        RuleNumber: '100'
+        NetworkAclId: !Ref 'ChallengeNetworkACL'
+
+    subnetacl1:
+      Type: AWS::EC2::SubnetNetworkAclAssociation
+      Properties:
+        NetworkAclId: !Ref 'ChallengeNetworkACL'
+        SubnetId: !Ref 'ChallengePublicSubnetA'
+
+    subnetacl2:
+      Type: AWS::EC2::SubnetNetworkAclAssociation
+      Properties:
+        NetworkAclId: !Ref 'ChallengeNetworkACL'
+        SubnetId: !Ref 'ChallengePublicSubnetB'
+
+    subnetacl3:
+      Type: AWS::EC2::SubnetNetworkAclAssociation
+      Properties:
+        NetworkAclId: !Ref 'ChallengeNetworkACL'
+        SubnetId: !Ref 'ChallengePrivateSubnetA'
+
+    subnetacl4:
+      Type: AWS::EC2::SubnetNetworkAclAssociation
+      Properties:
+        NetworkAclId: !Ref 'ChallengeNetworkACL'
+        SubnetId: !Ref 'ChallengePrivateSubnetB'
+
+    ChallengeIGWAttachment:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId: !Ref 'ChallengeVPC'
+        InternetGatewayId: !Ref 'ChallengeIGW'
+
+    subnetRoutePublicA:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref 'ChallengeRoutePublic'
+        SubnetId: !Ref 'ChallengePublicSubnetA'
+
+    subnetRoutePublicB:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref 'ChallengeRoutePublic'
+        SubnetId: !Ref 'ChallengePublicSubnetB'
+
+    subnetRoutePrivateA:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref 'ChallengeRoutePrivate'
+        SubnetId: !Ref 'ChallengePrivateSubnetA'
+
+    subnetRoutePrivateB:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        RouteTableId: !Ref 'ChallengeRoutePrivate'
+        SubnetId: !Ref 'ChallengePrivateSubnetB'
+
+    publicroute:
+      Type: AWS::EC2::Route
+      Properties:
+        DestinationCidrBlock: 0.0.0.0/0
+        RouteTableId: !Ref 'ChallengeRoutePublic'
+        GatewayId: !Ref 'ChallengeIGW'
+      DependsOn: ChallengeIGW
+
+
+Outputs:
+
+
+  LoadBalancerDNSName:
+    Description: DNSName of the load balancer
+    Value: !GetAtt ChallengeElb.DNSName
