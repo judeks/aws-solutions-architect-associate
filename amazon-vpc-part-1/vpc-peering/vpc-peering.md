@@ -1,5 +1,5 @@
 
-# Lab VPC Peering
+# Lab VPC Peering between two VPC with private subnets
 
   * Explorer le template CloudFormation en creant une pile
   * Creer 2 VPC avec 2 EC2 avec AWS CloudFormation
