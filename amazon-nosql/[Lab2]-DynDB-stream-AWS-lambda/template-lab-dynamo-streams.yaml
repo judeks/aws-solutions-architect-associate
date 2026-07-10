@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "DynamoDB CDC avec SQS et Lambda"
+
+Resources:
+  #Creation de la Table DynamoDB
+  OrdersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: OrdersTable
+      AttributeDefinitions:
+        - AttributeName: OrderID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: OrderID
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  # Creation de la file SQS
+  DynamoDBEventQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: DynamoDBEventQueue
+
+  # Role IAM pour Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaDynamoDBSQSPublisher
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaSQSDynamoDBPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                Resource: !GetAtt OrdersTable.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt DynamoDBEventQueue.Arn
+
+  #  Fonction Lambda
+  DynamoDBStreamProcessor:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: DynamoDBStreamProcessor
+      Runtime: python3.9
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+          sqs_client = boto3.client("sqs")
+          SQS_QUEUE_URL = os.getenv("SQS_QUEUE_URL")
+
+          def lambda_handler(event, context):
+              for record in event['Records']:
+                  event_name = record['eventName']
+                  new_image = record.get('dynamodb', {}).get('NewImage', {})
+                  old_image = record.get('dynamodb', {}).get('OldImage', {})
+
+                  message = {
+                      "eventName": event_name,
+                      "newImage": new_image,
+                      "oldImage": old_image
+                  }
+
+                  response = sqs_client.send_message(
+                      QueueUrl=SQS_QUEUE_URL,
+                      MessageBody=json.dumps(message)
+                  )
+
+                  print(f"Message envoyÃ© Ã  SQS: {response['MessageId']}")
+
+              return {"statusCode": 200, "body": "Processed records"}
+      Environment:
+        Variables:
+          SQS_QUEUE_URL: !Ref DynamoDBEventQueue
+      Timeout: 30
+
+Outputs:
+  DynamoDBTableName:
+    Description: "Nom de la table DynamoDB"
+    Value: !Ref OrdersTable
+  SQSQueueURL:
+    Description: "URL de la file SQS"
+    Value: !Ref DynamoDBEventQueue
+  LambdaFunction:
+    Description: "Nom de la fonction Lambda"
+    Value: !Ref DynamoDBStreamProcessor
