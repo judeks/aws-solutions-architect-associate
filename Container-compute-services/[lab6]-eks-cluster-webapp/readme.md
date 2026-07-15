@@ -19,3 +19,10 @@ eksctl create cluster --name $CLUSTER_NAME --region $REGION --nodegroup-name $NO
 
 
 Loadbalncer: 10.100.226.117 
+
+
+install helm
+windows
+linux
+
+Add the stable repository to your local Helm installation on Windows

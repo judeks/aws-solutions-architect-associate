@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test API Utilisateur</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+        background-color: #f9f9f9;
+        color: #333;
+      }
+      .container {
+        max-width: 500px;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      input,
+      button {
+        display: block;
+        width: calc(100% - 22px);
+        margin: 10px auto;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+      }
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      .section {
+        margin-bottom: 30px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 20px;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        background: #eef;
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Gestion des Utilisateurs</h1>
+
+      <!-- Section Ajouter -->
+      <div class="section">
+        <h2>Ajouter un Utilisateur</h2>
+        <input type="text" id="name" placeholder="Nom complet" />
+        <input type="email" id="email" placeholder="Email" />
+        <button onclick="addUser()">Ajouter</button>
+      </div>
+
+      <!-- Section Rechercher -->
+      <div class="section">
+        <h2>Récupérer un Utilisateur</h2>
+        <input
+          type="text"
+          id="user_id"
+          placeholder="ID de l'utilisateur (UUID)"
+        />
+        <button onclick="getUser()">Rechercher</button>
+      </div>
+
+      <!-- Affichage des Résultats -->
+      <div id="result"></div>
+    </div>
+
+    <script>
+      // REMPLACEZ CETTE URL PAR VOTRE URL D'API GATEWAY (SANS '/' À LA FIN)
+      const API_URL = "https://sdaicplwo8.execute-api.us-east-1.amazonaws.com/users";
+
+      function showResult(data, isError = false) {
+        const resultDiv = document.getElementById("result");
+        resultDiv.style.display = "block";
+        resultDiv.style.backgroundColor = isError ? "#f8d7da" : "#e2e3e5";
+        resultDiv.style.color = isError ? "#721c24" : "#1b1e21";
+        resultDiv.textContent = JSON.stringify(data, null, 2);
+      }
+
+      async function addUser() {
+        const name = document.getElementById("name").value;
+        const email = document.getElementById("email").value;
+
+        if (!name || !email) {
+          alert("Veuillez remplir tous les champs !");
+          return;
+        }
+
+        try {
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email }),
+          });
+          const data = await response.json();
+          showResult(data, !response.ok);
+          if (response.ok) {
+            // Pré-remplit automatiquement le champ de recherche pour faciliter le test !
+            document.getElementById("user_id").value = data.user_id;
+          }
+        } catch (error) {
+          showResult(
+            { error: "Impossible de contacter l'API", details: error.message },
+            true,
+          );
+        }
+      }
+
+      async function getUser() {
+        const userId = document.getElementById("user_id").value.trim();
+
+        if (!userId) {
+          alert("Veuillez entrer un User ID !");
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `${API_URL}?user_id=${encodeURIComponent(userId)}`,
+            {
+              method: "GET",
+            },
+          );
+          const data = await response.json();
+          showResult(data, !response.ok);
+        } catch (error) {
+          showResult(
+            { error: "Impossible de contacter l'API", details: error.message },
+            true,
+          );
+        }
+      }
+    </script>
+  </body>
+</html>
