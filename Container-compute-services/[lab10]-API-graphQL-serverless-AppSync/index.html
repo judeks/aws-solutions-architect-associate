@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test API GraphQL Serverless</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin-top: 50px;
+        background: #f4f4f9;
+      }
+      .container {
+        max-width: 50px0px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      input,
+      button {
+        margin: 5px;
+        padding: 10px;
+        width: 80%;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background: #ff9900;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+      }
+      button:hover {
+        background: #e68a00;
+      }
+      #result {
+        margin-top: 20px;
+        padding: 10px;
+        background: #eee;
+        border-radius: 4px;
+        white-space: pre-wrap;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Ajouter un Utilisateur</h2>
+      <input type="text" id="name" placeholder="Nom" />
+      <input type="email" id="email" placeholder="Email" />
+      <button onclick="addUser()">Ajouter</button>
+
+      <h2>Récupérer un Utilisateur</h2>
+      <input type="text" id="user_id" placeholder="User ID" />
+      <button onclick="getUser()">Rechercher</button>
+
+      <h3>Résultat :</h3>
+      <div id="result">Aucune action effectuée.</div>
+    </div>
+
+    <script>
+      // CONFIGURATION AWS APPSYNC (À compléter)
+      const APPSYNC_URL =
+        "https://h6wraox4rng2dlk7dcxzp2wliu.appsync-api.us-east-1.amazonaws.com/graphql";
+      const API_KEY = "da2-4msuonilzbat7igxzi6c6v75jq";
+
+      async function callGraphQL(query, variables = {}) {
+        try {
+          const response = await fetch(APPSYNC_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": API_KEY,
+            },
+            body: JSON.stringify({ query, variables }),
+          });
+          const json = await response.json();
+          document.getElementById("result").innerText = JSON.stringify(
+            json.data,
+            null,
+            2,
+          );
+        } catch (error) {
+          document.getElementById("result").innerText =
+            "Erreur: " + error.message;
+        }
+      }
+
+      function addUser() {
+        const name = document.getElementById("name").value;
+        const email = document.getElementById("email").value;
+
+        const mutation = `
+                mutation AddUser($name: String!, $email: String!) {
+                    addUser(name: $name, email: $email) {
+                        user_id
+                        name
+                        email
+                    }
+                }
+            `;
+        callGraphQL(mutation, { name, email });
+      }
+
+      function getUser() {
+        const user_id = document.getElementById("user_id").value;
+
+        const query = `
+                query GetUser($user_id: ID!) {
+                    getUser(user_id: $user_id) {
+                        user_id
+                        name
+                        email
+                    }
+                }
+            `;
+        callGraphQL(query, { user_id });
+      }
+    </script>
+  </body>
+</html>
