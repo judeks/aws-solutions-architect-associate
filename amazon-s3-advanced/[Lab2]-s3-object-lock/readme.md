@@ -46,6 +46,7 @@ aws s3api put-object-legal-hold \
       --legal-hold Status=ON
 
 Verification
+
 aws s3api get-object-legal-hold \
        --bucket s3-object-loack-bucket \
        --key document_legal.txt

@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CrÃ©ation du bucket de destination pour la rÃ©plication (us-east-1)
+
+Parameters:
+  DestinationBucketName:
+    Type: String
+    Description: Nom unique du bucket destination (us-east-1)
+
+Resources:
+  DestinationBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DestinationBucketName
+      VersioningConfiguration:
+        Status: Enabled
+
+Outputs:
+  DestinationBucketName:
+    Description: Nom du bucket destination
+    Value: !Ref DestinationBucketName
+
+  DestinationBucketArn:
+    Description: ARN du bucket destination
+    Value: !Sub arn:aws:s3:::${DestinationBucketName}
